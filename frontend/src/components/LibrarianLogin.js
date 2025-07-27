@@ -1,7 +1,10 @@
- // src/components/LibrarianLogin.js
+// src/components/LibrarianLogin.js
     import React, { useState, useContext } from 'react';
     import axios from 'axios';
     import { AuthContext } from '../context/AuthContext'; // Import AuthContext
+
+    // Updated: Using your Render backend URL
+    const BACKEND_URL = 'https://horizon-library-backend.onrender.com';
 
     function LibrarianLogin() {
         const [username, setUsername] = useState('');
@@ -14,7 +17,7 @@
             setError(''); // Clear previous errors
 
             try {
-                const res = await axios.post('http://localhost:5000/api/librarian/login', {
+                const res = await axios.post(`${BACKEND_URL}/api/librarian/login`, {
                     username,
                     password,
                 });
