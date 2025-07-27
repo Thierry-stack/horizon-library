@@ -1,0 +1,179 @@
+/* src/index.css */
+
+    /* Google Fonts - Inter */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    :root {
+        /* Color Palette */
+        --primary-color: #4CAF50; /* Green */
+        --secondary-color: #2196F3; /* Blue */
+        --accent-color: #FFC107; /* Amber */
+        --background-color: #F8F9FA; /* Light Gray Background */
+        --card-background: #FFFFFF; /* White for cards/forms */
+        --text-color: #333333; /* Dark Gray for main text */
+        --light-text-color: #666666; /* Medium Gray for secondary text */
+        --border-color: #DDDDDD; /* Light Gray for borders */
+        --error-color: #F44336; /* Red for errors */
+        --success-color: #4CAF50; /* Green for success */
+        --navbar-background: #333333; /* Dark Navbar */
+        --navbar-text: #FFFFFF; /* White Navbar text */
+    }
+
+    body {
+        margin: 0;
+        font-family: 'Inter', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background-color: var(--background-color);
+        color: var(--text-color);
+        line-height: 1.6;
+    }
+
+    code {
+        font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+    }
+
+    /* General Box Sizing */
+    *, *::before, *::after {
+        box-sizing: border-box;
+    }
+
+    /* Basic Form Styling */
+    form {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        color: var(--text-color);
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="email"],
+    input[type="date"],
+    input[type="number"],
+    textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 5px;
+        font-family: 'Inter', sans-serif;
+        font-size: 1em;
+        color: var(--text-color);
+        background-color: var(--card-background);
+        transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+
+    input[type="file"] {
+        padding: 8px 0; /* Adjust padding for file input */
+        border: 1px solid var(--border-color);
+        border-radius: 5px;
+        background-color: var(--card-background);
+    }
+
+
+    input[type="text"]:focus,
+    input[type="password"]:focus,
+    input[type="email"]:focus,
+    input[type="date"]:focus,
+    input[type="number"]:focus,
+    textarea:focus,
+    input[type="file"]:focus {
+        border-color: var(--secondary-color);
+        box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2); /* Blue shadow */
+        outline: none;
+    }
+
+    textarea {
+        resize: vertical; /* Allow vertical resizing */
+        min-height: 80px;
+    }
+
+    button {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 12px 25px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 600;
+        transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    button:hover {
+        background-color: #43A047; /* Slightly darker green */
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+
+    button:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    button:disabled {
+        background-color: #B0BEC5; /* Light grey for disabled */
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+    }
+
+    /* Message and Error Styling */
+    .error-message {
+        background-color: #FFEBEE; /* Light Red */
+        color: var(--error-color);
+        border: 1px solid var(--error-color);
+        padding: 10px 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        text-align: center;
+        font-weight: 500;
+    }
+
+    .success-message {
+        background-color: #E8F5E9; /* Light Green */
+        color: var(--success-color);
+        border: 1px solid var(--success-color);
+        padding: 10px 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        text-align: center;
+        font-weight: 500;
+    }
+
+    /* Link button styles (for Home component) */
+    a.button-link {
+        background-color: var(--secondary-color);
+        color: white;
+        padding: 15px 30px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 1.1em;
+        font-weight: bold;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        transition: background-color 0.3s ease, transform 0.2s ease;
+        cursor: pointer;
+        display: inline-block; /* To apply padding and margin correctly */
+    }
+
+    a.button-link:hover {
+        background-color: #1976D2; /* Darker blue */
+        transform: translateY(-2px);
+    }
+
+    /* Specific styles for the Librarian Login button on Home page */
+    .home-librarian-button {
+        background-color: var(--primary-color);
+    }
+
+    .home-librarian-button:hover {
+        background-color: #43A047; /* Darker green */
+    }
+    
