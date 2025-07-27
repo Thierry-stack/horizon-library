@@ -1,6 +1,9 @@
-// src/components/StudentDashboard.js
+ // src/components/StudentDashboard.js
     import React, { useEffect, useState } from 'react';
     import axios from 'axios';
+
+    // Updated: Using your Render backend URL
+    const BACKEND_URL = 'https://horizon-library-backend.onrender.com';
 
     function StudentDashboard() {
         const [books, setBooks] = useState([]);
@@ -13,7 +16,7 @@
         const fetchBooks = async () => {
             try {
                 // This fetches from /api/books (public)
-                const response = await axios.get('http://localhost:5000/api/books');
+                const response = await axios.get(`${BACKEND_URL}/api/books`);
                 setBooks(response.data);
                 setFilteredBooks(response.data); // Initially, all books are filtered
             } catch (err) {
@@ -83,7 +86,7 @@
                                     }}>
                                         {book.cover_image_url ? (
                                             <img
-                                                src={`http://localhost:5000${book.cover_image_url}`} // Prepend backend URL
+                                                src={`${BACKEND_URL}${book.cover_image_url}`} // Prepend backend URL
                                                 alt={`Cover of ${book.title}`}
                                                 style={{ maxWidth: '100%', height: 'auto', display: 'block', borderRadius: '4px' }}
                                                 onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/150x200?text=No+Image'; }} // Fallback image
