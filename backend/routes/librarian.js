@@ -1,9 +1,7 @@
-// backend/routes/librarian.js - Updated for MongoDB
-    const express = require('express');
+const express = require('express');
     const router = express.Router();
     const bcrypt = require('bcryptjs');
     const jwt = require('jsonwebtoken');
-    // const db = require('../server').db; // REMOVED: No longer directly importing db.mysqlPool
     const multer = require('multer');
     const path = require('path');
     const fs = require('fs'); // Node's file system module
@@ -37,6 +35,36 @@
             expiresIn: '1h', // Token expires in 1 hour
         });
     };
+
+    // @route   POST /api/librarian/create-temp-librarian
+    // @desc    Temporary route to create a new librarian for testing
+    // @access  Public (REMOVE AFTER USE)
+    router.post('/create-temp-librarian', async (req, res) => {
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+            return res.status(400).json({ message: 'Username and password are required.' });
+        }
+
+        try {
+            // Check if librarian already exists
+            const existingLibrarian = await Librarian.findOne({ username });
+            if (existingLibrarian) {
+                return res.status(409).json({ message: 'Librarian with this username already exists.' });
+            }
+
+            // Create new librarian using the Mongoose model (password will be hashed by pre-save hook)
+            const newLibrarian = new Librarian({ username, password });
+            await newLibrarian.save();
+
+            res.status(201).json({ message: 'Temporary librarian created successfully!', username: newLibrarian.username });
+
+        } catch (err) {
+            console.error('Error creating temporary librarian:', err);
+            res.status(500).json({ message: 'Server Error' });
+        }
+    });
+
 
     // @route   POST /api/librarian/login
     // @desc    Authenticate librarian & get token
