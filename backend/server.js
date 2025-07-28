@@ -1,6 +1,6 @@
-// backend/server.js
+    // backend/server.js
     const express = require('express');
-    const mysql = require('mysql2/promise'); // Using promise-based MySQL2
+    // const mysql = require('mysql2/promise'); // REMOVED: No longer using MySQL
     const mongoose = require('mongoose');
     const dotenv = require('dotenv');
     const cors = require('cors');
@@ -18,7 +18,6 @@
 
     app.use(cors({
         origin: function (origin, callback) {
-            // allow requests with no origin (like mobile apps or curl requests)
             if (!origin) return callback(null, true);
             if (allowedOrigins.indexOf(origin) === -1) {
                 const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
@@ -37,25 +36,15 @@
     app.use('/uploads', express.static('uploads'));
 
     // --- Database Connections ---
-    let mysqlPool; // Declared globally
+    // let mysqlPool; // REMOVED: No longer using MySQL
     let mongoDbConnection; // Declared globally
 
     async function connectDatabasesAndStartServer() {
         try {
-            // MySQL Connection
-            mysqlPool = await mysql.createPool({
-                host: process.env.DB_HOST,
-                user: process.env.DB_USER,
-                password: process.env.DB_PASSWORD,
-                database: process.env.DB_NAME,
-                waitForConnections: true,
-                connectionLimit: 10,
-                queueLimit: 0
-            });
-            console.log('Connected to MySQL database!');
+            // REMOVED MySQL Connection block
+            // console.log('Connected to MySQL database!');
 
             // MongoDB Connection
-            // The useNewUrlParser and useUnifiedTopology warnings are harmless for newer Mongoose versions
             await mongoose.connect(process.env.MONGO_URI);
             mongoDbConnection = mongoose.connection;
             console.log('Connected to MongoDB database!');
@@ -63,12 +52,11 @@
             // --- IMPORTANT: Now that connections are established, make them available and load routes ---
             // Make database connections available to other modules
             module.exports.db = {
-                mysqlPool: mysqlPool,
+                // mysqlPool: mysqlPool, // REMOVED: No longer exposing mysqlPool
                 mongoDbConnection: mongoDbConnection
             };
 
             // --- Import Routes ---
-            // These require statements will now execute AFTER db connections are ready
             const librarianRoutes = require('./routes/librarian');
             const studentRoutes = require('./routes/student');
             const publicRoutes = require('./routes/public');
@@ -95,4 +83,3 @@
 
     // Call the main function to connect databases and start the server
     connectDatabasesAndStartServer();
-    
