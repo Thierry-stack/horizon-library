@@ -1,35 +1,40 @@
- // backend/routes/public.js
+// backend/routes/public.js - Updated for MongoDB
     const express = require('express');
     const router = express.Router();
-    const { db } = require('../server'); // Import the database connection container
+    // const db = require('../server').db; // REMOVED: No longer directly importing db.mysqlPool
+
+    // Import MongoDB Book Model
+    const Book = require('../models/Book');
 
     // @route   GET /api/books
-    // @desc    Get all books (Publicly accessible)
+    // @desc    Get all books (public access)
     // @access  Public
     router.get('/', async (req, res) => {
         try {
-            const [rows] = await db.mysqlPool.execute('SELECT * FROM books');
-            res.json(rows);
+            // Fetch all books from MongoDB
+            const books = await Book.find({}); // Find all documents in the Book collection
+            res.json(books);
         } catch (err) {
-            console.error(err.message);
-            res.status(500).send('Server Error');
+            console.error('Error fetching books:', err);
+            res.status(500).json({ message: 'Server Error' });
         }
     });
 
     // @route   GET /api/books/:id
-    // @desc    Get a single book by ID (Publicly accessible)
+    // @desc    Get single book by ID (public access)
     // @access  Public
     router.get('/:id', async (req, res) => {
-        const { id } = req.params;
         try {
-            const [rows] = await db.mysqlPool.execute('SELECT * FROM books WHERE id = ?', [id]);
-            if (rows.length === 0) {
+            // Find book by ID in MongoDB
+            const book = await Book.findById(req.params.id);
+
+            if (!book) {
                 return res.status(404).json({ message: 'Book not found' });
             }
-            res.json(rows[0]);
+            res.json(book);
         } catch (err) {
-            console.error(err.message);
-            res.status(500).send('Server Error');
+            console.error('Error fetching single book:', err);
+            res.status(500).json({ message: 'Server Error' });
         }
     });
 
