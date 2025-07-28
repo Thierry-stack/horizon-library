@@ -1,12 +1,16 @@
-    // backend/routes/librarian.js
+// backend/routes/librarian.js - Updated for MongoDB
     const express = require('express');
     const router = express.Router();
     const bcrypt = require('bcryptjs');
     const jwt = require('jsonwebtoken');
-    const db = require('../server').db; // Import the db object from server.js
+    // const db = require('../server').db; // REMOVED: No longer directly importing db.mysqlPool
     const multer = require('multer');
     const path = require('path');
     const fs = require('fs'); // Node's file system module
+
+    // Import MongoDB Models
+    const Librarian = require('../models/Librarian');
+    const Book = require('../models/Book');
 
     // Ensure uploads directory exists
     const uploadsDir = path.join(__dirname, '../uploads');
@@ -41,24 +45,22 @@
         const { username, password } = req.body;
 
         try {
-            // Fetch librarian from MySQL
-            const [rows] = await db.mysqlPool.execute('SELECT * FROM librarians WHERE username = ?', [username]);
+            // Find librarian by username in MongoDB
+            const librarian = await Librarian.findOne({ username });
 
-            if (rows.length === 0) {
+            if (!librarian) {
                 return res.status(400).json({ message: 'Invalid credentials' });
             }
 
-            const librarian = rows[0];
-
-            // Compare provided password with hashed password
-            const isMatch = await bcrypt.compare(password, librarian.password);
+            // Compare provided password with hashed password using Mongoose method
+            const isMatch = await librarian.matchPassword(password);
 
             if (!isMatch) {
                 return res.status(400).json({ message: 'Invalid credentials' });
             }
 
             // Generate JWT token
-            const token = generateToken(librarian.id, 'librarian');
+            const token = generateToken(librarian._id, 'librarian'); // Use _id for MongoDB documents
 
             res.json({ message: 'Login successful', token, role: 'librarian' });
 
@@ -75,7 +77,7 @@
             try {
                 token = req.headers.authorization.split(' ')[1];
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
-                req.user = decoded; // Attach user info to request
+                req.user = decoded; // Attach user info to request (id and role)
                 next();
             } catch (error) {
                 console.error('Token verification error:', error);
@@ -99,20 +101,37 @@
 
         // Basic validation
         if (!title || !author || !isbn || !published_date) {
+            // Delete uploaded file if validation fails
+            if (req.file) fs.unlinkSync(req.file.path);
             return res.status(400).json({ message: 'Please enter all required fields: title, author, ISBN, published date.' });
         }
 
         try {
-            const [result] = await db.mysqlPool.execute(
-                'INSERT INTO books (title, author, isbn, published_date, description, cover_image_url, shelf_number, row_position) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [title, author, isbn, published_date, description, cover_image_url, shelf_number, row_position]
-            );
-            res.status(201).json({ message: 'Book added successfully!', bookId: result.insertId, cover_image_url });
-        } catch (err) {
-            console.error('Error adding book:', err);
-            if (err.code === 'ER_DUP_ENTRY') {
+            // Check if book with this ISBN already exists
+            const existingBook = await Book.findOne({ isbn });
+            if (existingBook) {
+                // Delete uploaded file if ISBN already exists
+                if (req.file) fs.unlinkSync(req.file.path);
                 return res.status(409).json({ message: 'Book with this ISBN already exists.' });
             }
+
+            const newBook = new Book({
+                title,
+                author,
+                isbn,
+                published_date,
+                description,
+                cover_image_url,
+                shelf_number,
+                row_position
+            });
+
+            const savedBook = await newBook.save();
+            res.status(201).json({ message: 'Book added successfully!', bookId: savedBook._id, cover_image_url: savedBook.cover_image_url });
+        } catch (err) {
+            console.error('Error adding book:', err);
+            // Delete uploaded file if other server error occurs
+            if (req.file) fs.unlinkSync(req.file.path);
             res.status(500).json({ message: 'Server Error' });
         }
     });
@@ -123,50 +142,67 @@
     router.put('/books/:id', protect, upload.single('coverImage'), async (req, res) => {
         const bookId = req.params.id;
         const { title, author, isbn, published_date, description, shelf_number, row_position } = req.body;
-        let cover_image_url = req.body.cover_image_url; // Existing URL if not uploading new
+        let cover_image_url_to_update = req.body.cover_image_url; // This might be the old URL or null if cleared
 
         try {
-            // Fetch current book data to handle image update/deletion
-            const [currentBookRows] = await db.mysqlPool.execute('SELECT cover_image_url FROM books WHERE id = ?', [bookId]);
-            const currentCoverImagePath = currentBookRows.length > 0 ? currentBookRows[0].cover_image_url : null;
+            const book = await Book.findById(bookId);
+
+            if (!book) {
+                // Delete uploaded file if book not found
+                if (req.file) fs.unlinkSync(req.file.path);
+                return res.status(404).json({ message: 'Book not found' });
+            }
+
+            // Handle image update/deletion logic
+            const oldCoverImagePath = book.cover_image_url; // Get current image URL from DB
 
             if (req.file) { // New image uploaded
-                cover_image_url = `/uploads/${req.file.filename}`;
-                // Delete old image if it exists
-                if (currentCoverImagePath && currentCoverImagePath.startsWith('/uploads/')) {
-                    const oldImagePath = path.join(__dirname, '..', currentCoverImagePath);
-                    if (fs.existsSync(oldImagePath)) {
-                        fs.unlinkSync(oldImagePath);
+                cover_image_url_to_update = `/uploads/${req.file.filename}`;
+                // Delete old image if it exists and is different from new one
+                if (oldCoverImagePath && oldCoverImagePath.startsWith('/uploads/') && oldCoverImagePath !== cover_image_url_to_update) {
+                    const oldFilePath = path.join(__dirname, '..', oldCoverImagePath);
+                    if (fs.existsSync(oldFilePath)) {
+                        fs.unlinkSync(oldFilePath);
                     }
                 }
             } else if (req.body.clearCoverImage === 'true' || req.body.cover_image_url === '') { // Explicitly clear image
-                cover_image_url = null;
-                if (currentCoverImagePath && currentCoverImagePath.startsWith('/uploads/')) {
-                    const oldImagePath = path.join(__dirname, '..', currentCoverImagePath);
-                    if (fs.existsSync(oldImagePath)) {
-                        fs.unlinkSync(oldImagePath);
+                cover_image_url_to_update = null;
+                if (oldCoverImagePath && oldCoverImagePath.startsWith('/uploads/')) {
+                    const oldFilePath = path.join(__dirname, '..', oldCoverImagePath);
+                    if (fs.existsSync(oldFilePath)) {
+                        fs.unlinkSync(oldFilePath);
                     }
                 }
             } else {
-                // If no new file and not explicitly clearing, retain existing URL from currentBookRows
-                cover_image_url = currentCoverImagePath;
+                // If no new file and not explicitly clearing, retain existing URL from DB
+                cover_image_url_to_update = oldCoverImagePath;
             }
 
+            // Update book fields
+            book.title = title;
+            book.author = author;
+            book.isbn = isbn;
+            book.published_date = published_date;
+            book.description = description;
+            book.shelf_number = shelf_number;
+            book.row_position = row_position;
+            book.cover_image_url = cover_image_url_to_update; // Set the determined image URL
 
-            const [result] = await db.mysqlPool.execute(
-                'UPDATE books SET title = ?, author = ?, isbn = ?, published_date = ?, description = ?, cover_image_url = ?, shelf_number = ?, row_position = ? WHERE id = ?',
-                [title, author, isbn, published_date, description, cover_image_url, shelf_number, row_position, bookId]
-            );
-
-            if (result.affectedRows === 0) {
-                return res.status(404).json({ message: 'Book not found' });
-            }
-            res.json({ message: 'Book updated successfully!' });
-        } catch (err) {
-            console.error('Error updating book:', err);
-            if (err.code === 'ER_DUP_ENTRY') {
+            // Check for duplicate ISBN only if ISBN is changed and it's not the current book's ISBN
+            const existingBookWithSameIsbn = await Book.findOne({ isbn });
+            if (existingBookWithSameIsbn && existingBookWithSameIsbn._id.toString() !== bookId) {
+                // Delete uploaded file if ISBN already exists for another book
+                if (req.file) fs.unlinkSync(req.file.path);
                 return res.status(409).json({ message: 'Book with this ISBN already exists.' });
             }
+
+            await book.save();
+            res.json({ message: 'Book updated successfully!' });
+
+        } catch (err) {
+            console.error('Error updating book:', err);
+            // Delete uploaded file if other server error occurs
+            if (req.file) fs.unlinkSync(req.file.path);
             res.status(500).json({ message: 'Server Error' });
         }
     });
@@ -178,23 +214,21 @@
         const bookId = req.params.id;
 
         try {
-            // Fetch book to get cover image path before deleting
-            const [bookRows] = await db.mysqlPool.execute('SELECT cover_image_url FROM books WHERE id = ?', [bookId]);
-            const cover_image_url = bookRows.length > 0 ? bookRows[0].cover_image_url : null;
+            const book = await Book.findById(bookId);
 
-            const [result] = await db.mysqlPool.execute('DELETE FROM books WHERE id = ?', [bookId]);
-
-            if (result.affectedRows === 0) {
+            if (!book) {
                 return res.status(404).json({ message: 'Book not found' });
             }
 
             // Delete the associated cover image file if it exists
-            if (cover_image_url && cover_image_url.startsWith('/uploads/')) {
-                const imagePath = path.join(__dirname, '..', cover_image_url);
+            if (book.cover_image_url && book.cover_image_url.startsWith('/uploads/')) {
+                const imagePath = path.join(__dirname, '..', book.cover_image_url);
                 if (fs.existsSync(imagePath)) {
                     fs.unlinkSync(imagePath);
                 }
             }
+
+            await book.deleteOne(); // Use deleteOne() for Mongoose 6+
 
             res.json({ message: 'Book deleted successfully!' });
         } catch (err) {
@@ -204,3 +238,4 @@
     });
 
     module.exports = router;
+    
